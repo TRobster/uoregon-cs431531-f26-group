@@ -59,6 +59,29 @@ Grid::Grid(double length, int cells)
         h = L / n;
         E.assign(n, 0.0);
         phi.assign(n, 0.0);
+        rho.assign(n, 0.0);
+    }
+
+// Eq. (4), rebuild rho from the particles plus the fixed ion background.
+// Each particle splits its charge between its two nearest nodes, using the
+// same linear weights as eq. (7), so the nearer node gets the larger share.
+void Grid::deposit(const vector<Particle> &particles)
+    {
+        // density one particle adds to a node if it gives that node all its charge
+        double w = ELECTRON_Q * N0 * L / (particles.size() * h);
+
+        rho.assign(n, -ELECTRON_Q * N0);
+
+        for (size_t p = 0; p < particles.size(); p++)
+        {
+            int i = particles[p].cellIndex(*this);
+            double f = (particles[p].retPos() - nodePos(i)) / h;
+
+            rho[i] += w * (1.0 - f); 
+
+            int ind = index(i+1);
+            rho[ind] += w * f;
+        }
     }
 
 int main()
@@ -73,4 +96,20 @@ int main()
     // leaving through the right edge comes back in on the left
     test.updatePOS(PAPER_L - 9.0, gnarl);
     cout << test.retPos() << " is in cell " << test.cellIndex(gnarl) << endl;
+
+    // evenly spaced electrons should cancel the ion background
+    int Np = 100 * PAPER_N;
+    vector<Particle> plasma;
+    for (int p = 0; p < Np; p++)
+    {
+        plasma.push_back(Particle((p + 0.5) * PAPER_L / Np, gnarl));
+    }
+    gnarl.deposit(plasma);
+
+    double total = 0.0;
+    for (int i = 0; i < PAPER_N; i++)
+    {
+        total += gnarl.retRho(i);
+    }
+    cout << "total charge density " << total << endl;
 }
