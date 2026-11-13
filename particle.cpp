@@ -84,6 +84,39 @@ void Grid::deposit(const vector<Particle> &particles)
         }
     }
 
+// Eq. (11) for phi, then eq. (12) for E. Call deposit first.
+//
+// Periodic phi is only defined up to a constant, so we pin phi[0] = 0. Node n
+// is node 0, so phi[n] = 0 too, and nodes 1..n-1 become an ordinary
+// tridiagonal system (1, -2, 1) solved with the Thomas algorithm. The i = 0
+// equation is left out, which is safe because sum(rho) = 0 makes it redundant.
+void Grid::fieldSolve()
+    {
+        vector<double> c(n, 0.0); // Thomas scratch, the modified upper diagonal
+
+        // forward sweep, phi[i] temporarily holds the modified right-hand side
+        phi[0] = 0.0;
+        for (int i = 1; i < n; i++)
+        {
+            double d = -h * h * rho[i] / EPS0;
+            double m = -2.0 - c[i - 1];
+
+            c[i] = 1.0 / m;
+            phi[i] = (d - phi[i - 1]) / m;
+        }
+
+        // back substitution, phi[n - 1] is already solved since phi[n] = 0
+        for (int i = n - 2; i >= 1; i--)
+        {
+            phi[i] -= c[i] * phi[i + 1];
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            E[i] = -(phi[index(i + 1)] - phi[index(i - 1)]) / (2.0 * h);
+        }
+    }
+
 int main()
 {
     Grid gnarl(PAPER_L, PAPER_N);
@@ -112,4 +145,14 @@ int main()
         total += gnarl.retRho(i);
     }
     cout << "total charge density " << total << endl;
+
+    // a neutral plasma should have no field
+    gnarl.fieldSolve();
+
+    double maxE = 0.0;
+    for (int i = 0; i < PAPER_N; i++)
+    {
+        maxE = max(maxE, fabs(gnarl.retE(i)));
+    }
+    cout << "largest |E| " << maxE << endl;
 }

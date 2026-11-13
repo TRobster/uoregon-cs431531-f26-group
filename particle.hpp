@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <vector>
+#include <algorithm>
 #include <iostream>
 #include <math.h>
 #pragma once
@@ -13,6 +14,7 @@ const int PAPER_N = 512;            // number of cells
 // Normalised units, chosen so that the plasma frequency is 1 as in Table 1
 const double ELECTRON_Q = -1.0;     // electron charge
 const double N0 = 1.0;              // background electron density
+const double EPS0 = 1.0;            // vacuum permittivity
 
 class Grid;
 
@@ -55,6 +57,8 @@ class Grid
         int retCells() const { return n; }
         double retSpacing() const { return h; }
         double retRho(int i) const { return rho[i]; }
+        double retPhi(int i) const { return phi[i]; }
+        double retE(int i) const { return E[i]; }
 
         // x_i, position of node i
         double nodePos(int i) const { return i * h; }
