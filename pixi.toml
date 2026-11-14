@@ -1,0 +1,25 @@
+[workspace]
+name = "pic"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "win-64", "linux-64"]
+
+[dependencies]
+cmake = "*"
+ninja = "*"
+cxx-compiler = "*"
+
+[target.osx.dependencies]
+llvm-openmp = "*"
+openmpi = "*"
+
+[target.linux.dependencies]
+openmpi = "*"
+
+[target.win-64.dependencies]
+msmpi = "*"
+
+[tasks]
+configure = "cmake -B build -G Ninja"
+build = { cmd = "cmake --build build", depends-on = ["configure"] }
+serial = { cmd = "./build/pic_serial", depends-on = ["build"] }
+hybrid = { cmd = "mpirun --oversubscribe -np 2 ./build/pic_hybrid", depends-on = ["build"], env = { OMP_NUM_THREADS = "2" } }
