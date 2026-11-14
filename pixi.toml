@@ -1,5 +1,5 @@
 [workspace]
-name = "pic"
+name = "twostream"
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "osx-64", "win-64", "linux-64"]
 
@@ -10,16 +10,26 @@ cxx-compiler = "*"
 
 [target.osx.dependencies]
 llvm-openmp = "*"
-openmpi = "*"
-
-[target.linux.dependencies]
-openmpi = "*"
-
-[target.win-64.dependencies]
-msmpi = "*"
 
 [tasks]
 configure = "cmake -B build -G Ninja"
 build = { cmd = "cmake --build build", depends-on = ["configure"] }
-serial = { cmd = "./build/pic_serial", depends-on = ["build"] }
-hybrid = { cmd = "mpirun --oversubscribe -np 2 ./build/pic_hybrid", depends-on = ["build"], env = { OMP_NUM_THREADS = "2" } }
+serial = { cmd = "./build/ts_serial", depends-on = ["build"] }
+omp = { cmd = "./build/ts_omp", depends-on = ["build"], env = { OMP_NUM_THREADS = "4" } }
+
+hybrid = "echo 'hybrid (OpenMP + MPI) runs on Talapas only: pixi run remote hybrid' && exit 1"
+gpu = "echo 'gpu (CUDA) runs on Talapas only: pixi run remote gpu' && exit 1"
+
+[feature.remote.dependencies]
+python = "*"
+git = "*"
+
+[feature.remote.tasks]
+remote = "python scripts/remote.py remote"
+batch = "python scripts/remote.py batch"
+session = "python scripts/remote.py session"
+results = "python scripts/remote.py results"
+remote-setup = "python scripts/remote.py setup"
+
+[environments]
+remote = { features = ["remote"], no-default-feature = true }
