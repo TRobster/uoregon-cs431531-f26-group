@@ -1,5 +1,6 @@
+# project setup and some options
 cmake_minimum_required(VERSION 3.20)
-project(pic LANGUAGES CXX)
+project(twostream LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,27 +9,44 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(PIC_ENABLE_GPU "Build the GPU version (supercomputer only)" OFF)
+option(TS_ENABLE_MPI "Build the OpenMP + MPI version (Talapas only)" OFF)
+option(TS_ENABLE_GPU "Build the CUDA version (Talapas only)" OFF)
 
+# shared parts
 add_library(core STATIC particle.cpp)
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(core PUBLIC _USE_MATH_DEFINES)
 
-add_executable(pic_serial main_serial.cpp)
-target_link_libraries(pic_serial PRIVATE core)
+# serial
+add_executable(ts_serial main_serial.cpp)
+target_link_libraries(ts_serial PRIVATE core)
 
+# openmp
 find_package(OpenMP COMPONENTS CXX)
-find_package(MPI COMPONENTS CXX)
-if(OpenMP_CXX_FOUND AND MPI_CXX_FOUND)
-  add_executable(pic_hybrid main_hybrid.cpp)
-  target_link_libraries(pic_hybrid PRIVATE core OpenMP::OpenMP_CXX MPI::MPI_CXX)
+if(OpenMP_CXX_FOUND)
+  add_executable(ts_omp main_omp.cpp)
+  target_link_libraries(ts_omp PRIVATE core OpenMP::OpenMP_CXX)
 else()
-  message(WARNING "OpenMP and MPI are both required, skipping pic_hybrid")
+  message(WARNING "OpenMP not found, skipping ts_omp")
 endif()
 
-if(PIC_ENABLE_GPU)
+# openmpi
+if(TS_ENABLE_MPI)
+  if(NOT OpenMP_CXX_FOUND)
+    message(FATAL_ERROR "TS_ENABLE_MPI needs OpenMP")
+  endif()
+  find_package(MPI REQUIRED COMPONENTS CXX)
+  add_executable(ts_hybrid main_hybrid.cpp)
+  target_link_libraries(ts_hybrid PRIVATE core OpenMP::OpenMP_CXX MPI::MPI_CXX)
+endif()
+
+# gpu
+if(TS_ENABLE_GPU)
+  if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES 80)
+  endif()
   enable_language(CUDA)
   set(CMAKE_CUDA_STANDARD 17)
-  add_executable(pic_gpu main_gpu.cu)
-  target_link_libraries(pic_gpu PRIVATE core)
+  add_executable(ts_gpu main_gpu.cu)
+  target_link_libraries(ts_gpu PRIVATE core)
 endif()

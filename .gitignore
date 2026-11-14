@@ -39,3 +39,6 @@ build/
 
 # stray compiled binary
 /particle
+results/
+.talapas-last
+.talapas-session
