@@ -42,3 +42,6 @@ build/
 results/
 .talapas-last
 .talapas-session
+
+# simulation output
+*.csv

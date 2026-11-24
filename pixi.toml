@@ -15,6 +15,7 @@ llvm-openmp = "*"
 configure = "cmake -B build -G Ninja"
 build = { cmd = "cmake --build build", depends-on = ["configure"] }
 serial = { cmd = "./build/ts_serial", depends-on = ["build"] }
+verify = { cmd = "./build/ts_verify", depends-on = ["build"] }
 omp = { cmd = "./build/ts_omp", depends-on = ["build"], env = { OMP_NUM_THREADS = "4" } }
 
 hybrid = "echo 'hybrid (OpenMP + MPI) runs on Talapas only: pixi run remote hybrid' && exit 1"

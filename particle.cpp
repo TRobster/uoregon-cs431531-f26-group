@@ -7,14 +7,19 @@
 Particle::Particle()
     {
         x = 0;
-        // fl vel = 0;
-        // fl force = 0;
-        // fl dens = 0;
+        v = 0;
     }
 
 Particle::Particle(double x1, const Grid &rf)
     {
         x = rf.wrap(x1);
+        v = 0;
+    }
+
+Particle::Particle(double x1, double v1, const Grid &rf)
+    {
+        x = rf.wrap(x1);
+        v = v1;
     }
 
 // Which cell of rf is this particle sitting in?
@@ -34,9 +39,19 @@ void Particle::updatePOS(double dx, const Grid &rf)
         this->x = rf.wrap(this->x + dx);
     }
 
+void Particle::updateVEL(double dv)
+    {
+        this->v += dv;
+    }
+
 double Particle::retPos() const
     {
         return this->x;
+    }
+
+double Particle::retVel() const
+    {
+        return this->v;
     }
 
 double Grid::wrap(double x) const
@@ -65,23 +80,49 @@ Grid::Grid(double length, int cells)
 // Eq. (4), rebuild rho from the particles plus the fixed ion background.
 // Each particle splits its charge between its two nearest nodes, using the
 // same linear weights as eq. (7), so the nearer node gets the larger share.
-void Grid::deposit(const vector<Particle> &particles)
+void Grid::clearRho()
     {
-        // density one particle adds to a node if it gives that node all its charge
-        double w = ELECTRON_Q * N0 * L / (particles.size() * h);
+        rho.assign(n, 0.0);
+    }
 
-        rho.assign(n, -ELECTRON_Q * N0);
+// density one particle adds to a node if it gives that node all its charge
+double Grid::chargeWeight(size_t total) const
+    {
+        return ELECTRON_Q * N0 * L / (total * h);
+    }
 
+void Grid::scatter(double *target, const Particle &p, double w) const
+    {
+        int i = p.cellIndex(*this);
+        double f = (p.retPos() - nodePos(i)) / h;
+
+        target[i] += w * (1.0 - f);
+        target[index(i + 1)] += w * f;
+    }
+
+void Grid::depositCharge(const vector<Particle> &particles, size_t total)
+    {
+        double w = chargeWeight(total);
+
+        clearRho();
         for (size_t p = 0; p < particles.size(); p++)
         {
-            int i = particles[p].cellIndex(*this);
-            double f = (particles[p].retPos() - nodePos(i)) / h;
-
-            rho[i] += w * (1.0 - f); 
-
-            int ind = index(i+1);
-            rho[ind] += w * f;
+            scatter(rho.data(), particles[p], w);
         }
+    }
+
+void Grid::addBackground()
+    {
+        for (int i = 0; i < n; i++)
+        {
+            rho[i] -= ELECTRON_Q * N0;
+        }
+    }
+
+void Grid::deposit(const vector<Particle> &particles)
+    {
+        depositCharge(particles, particles.size());
+        addBackground();
     }
 
 // Eq. (11) for phi, then eq. (12) for E. Call deposit first.
@@ -115,4 +156,21 @@ void Grid::fieldSolve()
         {
             E[i] = -(phi[index(i + 1)] - phi[index(i - 1)]) / (2.0 * h);
         }
+    }
+
+double Grid::interpE(const Particle &p) const
+    {
+        int i = p.cellIndex(*this);
+        double f = (p.retPos() - nodePos(i)) / h;
+        return E[i] + f * (E[index(i + 1)] - E[i]);
+    }
+
+double Grid::fieldEnergy() const
+    {
+        double sum = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            sum += E[i] * E[i];
+        }
+        return 0.5 * EPS0 * sum * h;
     }

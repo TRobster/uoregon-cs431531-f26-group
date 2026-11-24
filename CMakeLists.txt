@@ -13,13 +13,17 @@ option(TS_ENABLE_MPI "Build the OpenMP + MPI version (Talapas only)" OFF)
 option(TS_ENABLE_GPU "Build the CUDA version (Talapas only)" OFF)
 
 # shared parts
-add_library(core STATIC particle.cpp)
+add_library(core STATIC particle.cpp sim.cpp)
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(core PUBLIC _USE_MATH_DEFINES)
 
 # serial
 add_executable(ts_serial main_serial.cpp)
 target_link_libraries(ts_serial PRIVATE core)
+
+# checks against the paper and known physics
+add_executable(ts_verify main_verify.cpp)
+target_link_libraries(ts_verify PRIVATE core)
 
 # openmp
 find_package(OpenMP COMPONENTS CXX)
